@@ -23,18 +23,23 @@ export class AuthService {
     }
 
     async login(loginDTO: LoginDTO): Promise<{ accessToken: string }> {
+        // console.log(loginDTO);
         const user = await this.userService.findOne(loginDTO);
+        
+        if (!user) {
+            throw new UnauthorizedException("User not found");
+        }
 
-        const passwordMatched = await bcrypt.compare(
-            loginDTO.password,
-            user.password
-        );
-        console.log(passwordMatched)
+        // console.log(user);
+
+        const passwordMatched = await bcrypt.compare( loginDTO.password, user.password );
+
         if (passwordMatched) {
-            const payload = { username: user.username, sub: user.id };
+            const payload = { username: user.username, sub: user.useremail };
+            console.log(payload);
             return {accessToken: this.jwtService.sign(payload)};
         } else {
-            throw new UnauthorizedException("Password does not match"); // 5.
+            throw new UnauthorizedException("Password does not match");
         }
     }
 }

@@ -1,6 +1,4 @@
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { BoardsModule } from './boards/boards.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeORMConfig } from './config/typeorm.config';
@@ -9,6 +7,10 @@ import { UsersService } from './users/users.service';
 import { UsersModule } from './users/users.module';
 import { ConfigModule } from '@nestjs/config';
 import configuration from 'config/configuration';
+import { DataSource } from 'typeorm';
+import { LoggerMiddleware } from './common/middleware/logger/logger.middleware';
+import { PhotosModule } from './photos/photos.module';
+import { CommentsModule } from './comments/comments.module';
 
 @Module({
   imports: [
@@ -17,11 +19,18 @@ import configuration from 'config/configuration';
       envFilePath: '.env'
     }),
     TypeOrmModule.forRoot(typeORMConfig),
-    BoardsModule,
     AuthModule,
-    UsersModule
+    BoardsModule,
+    CommentsModule,
+    UsersModule,
+    PhotosModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  constructor(private dataSource: DataSource) {
+    console.log(dataSource.driver.database);
+  }
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*'); //option no 3
+  }
+}
