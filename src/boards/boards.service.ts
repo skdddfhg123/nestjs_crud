@@ -146,11 +146,35 @@ export class BoardsService {
     // }
 
 
-    async deleteBoard(id: number, user: User): Promise<void> {
-        const result = await this.boardRepository.delete({id, user});
+    // async deleteBoard(id: number, user: User): Promise<void> {
+    //     const result = await this.boardRepository.delete({id, user});
 
+    //     if (result.affected === 0) {
+    //         throw new NotFoundException(`Can't find Board with id ${id}`)
+    //     }
+    // }
+    async deleteBoard(id: number, user: User): Promise<void> {
+        // const board = await this.boardRepository.findOne({ where: { id } });
+        // if (!board) {
+        //     throw new NotFoundException(`Can't find Board with id ${id}`);
+        // }
+        const found = await this.boardRepository.createQueryBuilder('board')
+            .leftJoinAndSelect('board.user', 'user')
+            .where('board.id = :id', { id })
+            .getOne();
+        
+        console.log(found)
+        if (!found) {
+            throw new NotFoundException(`Can't find Board with id ${id}`);
+        }
+
+        if (found.user.username !== user.username) {
+            throw new UnauthorizedException('You are not authorized to update this board.');
+        }
+
+        const result = await this.boardRepository.softDelete(id);
         if (result.affected === 0) {
-            throw new NotFoundException(`Can't find Board with id ${id}`)
+            throw new NotFoundException(`Board with ID "${id}" not found`);
         }
     }
 
@@ -205,6 +229,16 @@ export class BoardsService {
     //     console.log(paginatedBoards);
     //     return paginatedBoards;
     // }
+
+    async uplike(id: number) :Promise<void> {
+        const board = await this.findOneBoard(id);
+    
+        if (!board) {
+            throw new NotFoundException(`Board with ID ${id} not found.`);
+        }
+
+        await this.boardRepository.increment({ id: id }, 'like', 1);
+    }
 
     async paginateAllBoards(options: IPaginationOptions): Promise<Pagination<BoardResponse>> {
         const queryBuilder = this.boardRepository.createQueryBuilder('board');
@@ -262,47 +296,47 @@ export class BoardsService {
     //     return paginate<Board>(queryBuilder, options);
     // }
 
-    // async paginateMyBoards(options: CustomPaginationOptions): Promise<Pagination<BoardResponse>> {
-    //     // Create the query builder with joins to load user and photo
-    //     const queryBuilder = this.boardRepository.createQueryBuilder('board');
-    //     queryBuilder.leftJoinAndSelect('board.user', 'user');
-    //     queryBuilder.leftJoinAndSelect('board.photo', 'photo');
-    //     queryBuilder.where('user.useremail = :email', { email: options.user.useremail });
-    //     queryBuilder.orderBy('board.releasedDate', 'DESC');
+    async paginateMyBoards(options: CustomPaginationOptions): Promise<Pagination<BoardResponse>> {
+        // Create the query builder with joins to load user and photo
+        const queryBuilder = this.boardRepository.createQueryBuilder('board');
+        queryBuilder.leftJoinAndSelect('board.user', 'user');
+        queryBuilder.leftJoinAndSelect('board.photo', 'photo');
+        queryBuilder.where('user.useremail = :email', { email: options.user.useremail });
+        queryBuilder.orderBy('board.releasedDate', 'DESC');
     
-    //     // Use the paginate utility to get the paginated results
-    //     const paginatedBoards = await paginate<Board>(queryBuilder, options);
+        // Use the paginate utility to get the paginated results
+        const paginatedBoards = await paginate<Board>(queryBuilder, options);
 
-    //     console.log(paginatedBoards);
+        console.log(paginatedBoards);
     
-    //     // Map over the items to handle the photo data similar to paginateAllBoards
-    //     const boardResponses = await Promise.all(paginatedBoards.items.map(async (board) => {
-    //         let photoData = null;
-    //         if (board.photo) {
-    //             const photo = board.photo ? await this.photoRepository.findOne({ where: { id: board.photo.id } }) : null;
-    //             photoData = photo ? Buffer.from(photo.data).toString('base64') : null;
-    //         }
+        // Map over the items to handle the photo data similar to paginateAllBoards
+        const boardResponses = await Promise.all(paginatedBoards.items.map(async (board) => {
+            let photoData = null;
+            if (board.photo) {
+                const photo = board.photo ? await this.photoRepository.findOne({ where: { id: board.photo.id } }) : null;
+                photoData = photo ? Buffer.from(photo.data).toString('base64') : null;
+            }
     
-    //         return {
-    //             id: board.id,
-    //             title: board.title,
-    //             description: board.description,
-    //             status: board.status,
-    //             like: board.like,
-    //             releasedDate: board.releasedDate,
-    //             createdAt: board.createdAt,
-    //             updatedAt: board.updatedAt,
-    //             deletedAt: board.deletedAt || null,
-    //             user: board.user,
-    //             photo: photoData
-    //         };
-    //     }));
+            return {
+                id: board.id,
+                title: board.title,
+                description: board.description,
+                status: board.status,
+                like: board.like,
+                releasedDate: board.releasedDate,
+                createdAt: board.createdAt,
+                updatedAt: board.updatedAt,
+                deletedAt: board.deletedAt || null,
+                user: board.user,
+                photo: photoData
+            };
+        }));
 
-    //     // Return the new Pagination object with the modified structure
-    //     return new Pagination<BoardResponse>(
-    //         boardResponses,
-    //         paginatedBoards.meta,
-    //         paginatedBoards.links,
-    //     );
-    // }
+        // Return the new Pagination object with the modified structure
+        return new Pagination<BoardResponse>(
+            boardResponses,
+            paginatedBoards.meta,
+            paginatedBoards.links,
+        );
+    }
 }

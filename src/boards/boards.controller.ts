@@ -57,28 +57,35 @@ export class SecuredBoardsController {
         console.log(file);
         return this.boardsService.createBoard(createBoardDto, user, file);
     }
-    
-    // @Get()
-    // findMyBoards(
-    //     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
-    //     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number = 10,
-    //     @GetUser() user: User
-    // ): Promise<Pagination<BoardResponse>> {
-    //     try {
-    //         limit = limit > 100 ? 100 : limit;
-    //         return this.boardsService.paginateMyBoards({
-    //             page,
-    //             limit,
-    //             user
-    //         });
-    //     } catch (e) {
-    //         throw new HttpException(
-    //         'server error',
-    //         HttpStatus.INTERNAL_SERVER_ERROR, {
-    //             cause: e,
-    //         });
-    //     }
-    // }
+
+    @Post(':id/like')
+    uplike(
+        @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: number,
+    ): Promise<void> {
+        return this.boardsService.uplike(id);
+    }
+
+    @Get('my_boards')
+    findMyBoards(
+        @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+        @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number = 10,
+        @GetUser() user: User
+    ): Promise<Pagination<BoardResponse>> {
+        try {
+            limit = limit > 100 ? 100 : limit;
+            return this.boardsService.paginateMyBoards({
+                page,
+                limit,
+                user
+            });
+        } catch (e) {
+            throw new HttpException(
+            'server error',
+            HttpStatus.INTERNAL_SERVER_ERROR, {
+                cause: e,
+            });
+        }
+    }
 
     @Get(":id")
     findOne(
